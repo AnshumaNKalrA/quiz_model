@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Upload PDF</title>
+</head>
+<body>
+    <h1>Upload a PDF</h1>
+
+    <!-- 
+         IMPORTANT:
+         The form must have: 
+           method="POST"
+           enctype="multipart/form-data" 
+         to handle file uploads correctly.
+    -->
+    <form action="http://127.0.0.1:5000/process_pdf" method="POST" enctype="multipart/form-data">
+        <label for="pdf_file">Select a PDF:</label>
+        <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf">
+        <br><br>
+        <button type="submit">Upload PDF</button>
+    </form>
+</body>
+</html>
