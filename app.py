@@ -4,8 +4,10 @@ import uuid
 from flask import Flask,request,jsonify
 from pdf2image import convert_from_bytes
 from main import pdf_processing
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # Enables CORS for all routes
 
 @app.route('/process_pdf/<quizid>',methods=['POST'])
 def process_pdf(quizid):
