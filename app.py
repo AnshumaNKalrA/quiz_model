@@ -7,8 +7,8 @@ from main import pdf_processing
 
 app = Flask(__name__)
 
-@app.route('/process_pdf',methods=['POST'])
-def process_pdf():
+@app.route('/process_pdf/<quizid>',methods=['POST'])
+def process_pdf(quizid):
     if 'pdf_file' not in request.files:
         return jsonify({"error": "No PDF file uploaded."}), 400
 
@@ -29,7 +29,7 @@ def process_pdf():
         
         student_record = {
             "playerId": int(student_id),
-            "quizId": 68,
+            "quizId": int(quizid),
             "markedResponses": string_answers,
             "score": 0  # Set default score to 0
         }
