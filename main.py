@@ -138,7 +138,7 @@ def pdf_processing(pages):
         # 3) Save each cropped rectangle
         output_dir = "cropped_rect"
         os.makedirs(output_dir, exist_ok=True)
-
+        print(sid_boxes_sorted)
         SID_list = list()
         sid = ""
         for i, (x, y, w, h) in enumerate(sid_boxes_sorted):
@@ -152,6 +152,7 @@ def pdf_processing(pages):
             digit = final_digit_recognised(cropped,2,2,2,2,valid_digits=[1,2,3,4,5,6,7,8,9,0])
             sid += str(digit)
         dict_return[sid] = list()
+        print(sid)
 
         for index, (x, y, w_box, h_box, area) in enumerate(boxes_sorted):
             if(area > 8000):
@@ -164,5 +165,5 @@ def pdf_processing(pages):
             attempted = final_digit_recognised(cropped,7,7,5,5,valid_digits=[1,2,3,4])
             dict_return[sid].append(attempted)
     
-    json_return = json.dumps(dict_return)
-    return json_return
+    # json_return = json.dumps(dict_return)
+    return dict_return
