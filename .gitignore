@@ -1,1 +1,8 @@
 virtenv/
+virtenv/
+all_contours*/
+cropped_rect*/
+option_boxes*/
+sid_boxes*/
+sid_digits*/
+single_sheet/
