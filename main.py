@@ -19,6 +19,7 @@ model = load_model("./handwritten_digit_cnn.h5")
 pdf_path = "./Scanned_sheets.pdf"
 pages = convert_from_path(pdf_path, dpi=144)
 
+#Saving the respective pages into directory
 os.makedirs("single_sheet", exist_ok=True)
 
 dict_return = {}
@@ -30,9 +31,9 @@ LEFT_CROP = 20
 RIGHT_CROP = 20
 
 def pdf_processing(pages):
-    dict_return = {}
+    dict_return = {} # Dictionary with respective SIDs and answers
     for idx, page_img in enumerate(pages):
-        # For saving each page in PDF to PNG
+        # For saving each page in PDF to PNG inside single_sheet directory
         page_path = os.path.join("single_sheet", f"page_{idx}.png")
         page_img.save(page_path, "PNG")
 
@@ -58,8 +59,8 @@ def pdf_processing(pages):
         contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
 
         # Store all contour crops for debugging
-        all_contours_dir = f"all_contours_{idx}"
-        os.makedirs(all_contours_dir, exist_ok=True)
+        sid_boxes_dir = f"sid_boxes_{idx}"
+        os.makedirs(sid_boxes_dir, exist_ok=True)
 
         # Separate bounding boxes into SID boxes and answer option boxes
         sid_boxes = []
@@ -72,14 +73,13 @@ def pdf_processing(pages):
             if area < 300 or area > 50000:
                 continue
 
-            # Save every bounding box for debugging
-            cropped_contour = cropped_page_img[y : y + h_box, x : x + w_box]
-            debug_path = os.path.join(all_contours_dir, f"contour_{area}_x{x}_y{y}.png")
-            cv2.imwrite(debug_path, cropped_contour)
-
             # Classify bounding boxes:
             # For SID boxes: near-square with area between 2200 and 2600.
             if 2200 < area < 2600:
+                # Save every SID box for debugging
+                # cropped_sid = cropped_page_img[y : y + h_box, x : x + w_box]
+                # debug_path = os.path.join(sid_boxes_dir, f"sid_{area}_x{x}_y{y}.png")
+                # cv2.imwrite(debug_path, cropped_sid)
                 sid_boxes.append((x, y, w_box, h_box))
                 print("SID:", x, y, w_box, h_box)
             # For answer option boxes: using the previous area threshold.
@@ -97,13 +97,15 @@ def pdf_processing(pages):
 
         for i, (x, y, w_box, h_box) in enumerate(sid_boxes_sorted):
             # Crop each SID digit box
+            valid_digits=[0,1,2,3,4,5,6,7,8,9]
+            if(i == 3):
+                valid_digits=[0,1]
             digit_crop = cropped_page_img[y : y + h_box, x : x + w_box]
             sid_crop_path = os.path.join(sid_dir, f"sid_digit_{i}.png")
             cv2.imwrite(sid_crop_path, digit_crop)
 
             # Recognize the digit from this crop
-            digit = final_digit_recognised(digit_crop, 2, 2, 2, 2,
-                                           valid_digits=[0,1,2,3,4,5,6,7,8,9])
+            digit = final_digit_recognised(digit_crop,i,sid_dir, 3, 3, 3, 3,valid_digits)
             sid_str += str(digit)
 
         # If no SID boxes found, assign a fallback key
@@ -126,14 +128,9 @@ def pdf_processing(pages):
             cv2.imwrite(opt_crop_path, cropped_opt)
 
             # Recognize the digit (assuming valid options are 1-4)
-            attempted = final_digit_recognised(
-                cropped_opt, 7, 7, 5, 5, valid_digits=[1,2,3,4]
-            )
+            attempted = final_digit_recognised(cropped_opt,j,opt_dir, 7, 7, 5, 5, valid_digits=[1,2,3,4])
             dict_return[sid_str].append(attempted)
-
-    # Return JSON of the form {"8_digit_sid": [list_of_answers], ...}
-    json_return = json.dumps(dict_return)
-    return json_return
+    return dict_return
 
 # Run
-# pdf_processing(pages)
+print(pdf_processing(pages))
