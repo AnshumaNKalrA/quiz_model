@@ -16,8 +16,8 @@ import json
 model = load_model("./handwritten_digit_cnn.h5")
 
 # 1) Convert each page of the PDF into a PIL image
-pdf_path = "./Scanned_sheets.pdf"
-pages = convert_from_path(pdf_path, dpi=144)
+# pdf_path = "./Scanned_sheets.pdf"
+# pages = convert_from_path(pdf_path, dpi=144)
 
 #Saving the respective pages into directory
 os.makedirs("single_sheet", exist_ok=True)
@@ -133,4 +133,4 @@ def pdf_processing(pages):
     return dict_return
 
 # Run
-print(pdf_processing(pages))
+# print(pdf_processing(pages))
