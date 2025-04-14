@@ -128,7 +128,7 @@ def pdf_processing(pages):
             cv2.imwrite(opt_crop_path, cropped_opt)
 
             # Recognize the digit (assuming valid options are 1-4)
-            attempted = final_digit_recognised(cropped_opt,j,opt_dir, 7, 7, 5, 5, valid_digits=[1,2,3,4])
+            attempted = final_digit_recognised(cropped_opt,j,opt_dir, 7, 7, 5, 5, valid_digits=[1,2,3,4],option=True)
             dict_return[sid_str].append(attempted)
     return dict_return
 

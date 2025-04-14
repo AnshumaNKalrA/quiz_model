@@ -96,7 +96,7 @@ def is_struck_out_enhanced(image_norm):
 
     return False
 
-def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_digits):
+def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_digits,option=False):
     """
     Process a digit image:
     - Crop and preprocess it.
@@ -126,4 +126,7 @@ def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_di
     softmax_probs = tf.nn.softmax(prediction).numpy().flatten()
     sub_probs = [softmax_probs[d] for d in valid_digits]
     predicted_digit = valid_digits[np.argmax(sub_probs)]
+    if(option):
+        if(np.argmax(softmax_probs) != predicted_digit):
+            return "N.A"
     return predicted_digit
