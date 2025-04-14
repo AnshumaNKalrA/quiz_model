@@ -116,7 +116,7 @@ def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_di
     # Use the advanced strike-out detector.
     if is_struck_out_enhanced(norm_img):
         print(f"Digit at index {i} appears to be struck-out.")
-        return None  # or "N/A"
+        return "N.A"
     
     # Prepare the image for the model: add channel and batch dimensions.
     model_input = np.expand_dims(norm_img, axis=-1)
