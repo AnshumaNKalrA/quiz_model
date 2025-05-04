@@ -4,7 +4,14 @@ import tensorflow as tf
 import os
 from keras.models import load_model
 
-model = load_model("./handwritten_digit_cnn.h5")
+# Load the pre-trained model
+# Ensure the model file 'handwritten_digit_cnn.h5' is in the same directory as your script
+try:
+    model = load_model("./handwritten_digit_cnn.h5")
+except Exception as e:
+    print(f"Error loading the model: {e}")
+    print("Please ensure 'handwritten_digit_cnn.h5' is in the correct directory.")
+    model = None # Set model to None if loading fails
 
 def custom_crop(image, top=0, bottom=0, left=0, right=0):
     h, w = image.shape[:2]
@@ -47,86 +54,120 @@ def crop_and_preprocess_digit(image, top=0, bottom=0, right=0, left=0, padding=1
     final_64 = letterbox_to_64_black(digit_roi)
     return final_64
 
-def is_struck_out_enhanced(image_norm):
+def is_struck_out_enhanced(image_norm, option=False, sid_dir=None, index=None):
     """
-    Enhanced strike-through detection that handles wavy/haphazard strokes.
-    
+    Simple detection based on white pixel count range, with different ranges for SID and Option boxes,
+    and saves the image for debugging.
+
     Parameters:
       image_norm: A 2D grayscale image (64x64) normalized to [0,1]
-      
+      option: Boolean indicating if the image is from an option box.
+      sid_dir: Directory path for saving debug images.
+      index: Index of the digit/option being processed for unique filename.
+
     Returns:
-      True if evidence of a strike-out stroke is found; otherwise, False.
+      True if the white pixel count is outside the specified range for the box type; otherwise, False.
     """
     # Convert the normalized image to an 8-bit binary image.
+    # Assuming the preprocessing (crop_and_preprocess_digit) already handles inversion
+    # such that ink is white (255) and background is black (0).
     img_uint8 = (image_norm * 255).astype(np.uint8)
-    _, binary_img = cv2.threshold(img_uint8, 128, 255, cv2.THRESH_BINARY)
-    
-    # --- Method 1: Hough Transform Based Detection ---
-    # Use Canny edge detection to get edges
-    edges = cv2.Canny(binary_img, 50, 150, apertureSize=3)
-    # HoughLinesP to detect line segments
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=30, 
-                            minLineLength=int(0.6 * binary_img.shape[1]), 
-                            maxLineGap=5)
-    if lines is not None:
-        width = binary_img.shape[1]
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            line_length = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-            if line_length < 0.6 * width:
-                continue
-            angle = np.degrees(np.arctan2((y2 - y1), (x2 - x1)))
-            # Check if line is near horizontal or near a 45° diagonal (adjust tolerances as needed)
-            if (abs(angle) < 30) or (abs(abs(angle) - 45) < 20):
-                return True
+    # Re-thresholding to ensure clear binary with ink as 255
+    # Use THRESH_BINARY_INV + OTSu to ensure ink is white (255) on black (0) background
+    _, binary_img = cv2.threshold(img_uint8, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # --- Method 2: Contour Analysis within a Central Band ---
-    # Define a central band in the vertical direction.
-    h, w = binary_img.shape
-    band_height = h // 3  # use one-third of the height
-    band = binary_img[(h // 2 - band_height // 2):(h // 2 + band_height // 2), :]
-    # Find contours in the central band.
-    contours, _ = cv2.findContours(band, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for cnt in contours:
-        x, y, cw, ch = cv2.boundingRect(cnt)
-        # Heuristic: if the contour spans most of the width but is relatively thin, it may be a strike.
-        if cw > 0.6 * w and ch < band_height * 0.6:
-            # Optionally, further measures (e.g. aspect ratio or solidity) can be added.
-            return True
 
-    return False
+    # Count the number of white pixels (non-zero pixels)
+    white_pixel_count = cv2.countNonZero(binary_img)
+
+    # --- Save the binary image with pixel count in filename for debugging ---
+    # Create a directory for saving debug images if it doesn't exist
+    if sid_dir: # Only attempt to save if sid_dir is provided
+        debug_output_dir = os.path.join(sid_dir, "debug_pixel_counts")
+        os.makedirs(debug_output_dir, exist_ok=True)
+        # Save the binary image (which clearly shows ink as white)
+        debug_image_path = os.path.join(debug_output_dir, f"digit_{index}_count_{white_pixel_count}.png")
+        cv2.imwrite(debug_image_path, binary_img)
+        # print(f"Saved debug image for digit {index} with pixel count {white_pixel_count} to: {debug_image_path}") # Uncomment for verbose output
+    # --- End Save Logic ---
+
+
+    # Define the acceptable range for white pixels based on box type
+    if option:
+        min_white_pixels = 3700
+        max_white_pixels = 4000
+        box_type = "Option"
+    else: # Assuming it's an SID box if not an option
+        min_white_pixels = 3700
+        max_white_pixels = 4050
+        box_type = "SID"
+
+
+    # Check if the white pixel count is outside the desired range
+    if white_pixel_count < min_white_pixels or white_pixel_count > max_white_pixels:
+        print(f"{box_type} box: White pixel count ({white_pixel_count}) is outside the range ({min_white_pixels}-{max_white_pixels}). Flagging.")
+        return True
+    else:
+        # print(f"{box_type} box: White pixel count ({white_pixel_count}) is within the range.")
+        return False
+
 
 def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_digits,option=False):
     """
     Process a digit image:
     - Crop and preprocess it.
-    - Use advanced strike-out detection to determine if it was cancelled.
-    - If not cancelled, use the CNN model to predict the digit.
+    - Use simple detection based on white pixel count (is_struck_out_enhanced), with different ranges for SID and Option.
+    - If not marked, use the CNN model to predict the digit.
     """
+    # Check if the model was loaded successfully
+    if model is None:
+        print("Model not loaded, cannot perform digit recognition.")
+        return "ERROR" # Or handle as appropriate
+
     # Preprocess the digit image to a 64x64 grayscale image.
     final_64 = crop_and_preprocess_digit(image, top, bottom, right, left, padding=10)
+    if final_64.size == 0 or np.all(final_64 == 0): # Check for empty or all black image after preprocessing
+        print(f"Warning: Preprocessed image at index {i} is empty or all black. Skipping recognition.")
+        return "N.A"
+
     # Optionally save for debugging.
-    sid_crop_path = os.path.join(sid_dir, f"sid_digit_after_preprocessing_{i}.png")
-    cv2.imwrite(sid_crop_path, final_64)
-    print("Preprocessed digit shape:", final_64.shape)
-    
+    # sid_crop_path = os.path.join(sid_dir, f"sid_digit_after_preprocessing_{i}.png")
+    # cv2.imwrite(sid_crop_path, final_64)
+    # print("Preprocessed digit shape:", final_64.shape)
+
     # Normalize image to [0,1].
     norm_img = final_64.astype(np.float32) / 255.0
-    
-    # Use the advanced strike-out detector.
-    if is_struck_out_enhanced(norm_img):
-        print(f"Digit at index {i} appears to be struck-out.")
+
+    # Use the simple detection based on white pixel count range.
+    # Pass the 'option' flag to is_struck_out_enhanced to use the correct range.
+    # Pass sid_dir and index for potential debug saving within is_struck_out_enhanced.
+    if is_struck_out_enhanced(norm_img, option=option, sid_dir=sid_dir, index=i):
+        # print(f"Digit at index {i} appears to be marked (white pixel count check).")
         return "N.A"
-    
+
+    # --- CNN Prediction (if not marked by the simple check) ---
+    # This part is reached only if is_struck_out_enhanced did NOT flag the image.
+
     # Prepare the image for the model: add channel and batch dimensions.
     model_input = np.expand_dims(norm_img, axis=-1)
     model_input = np.expand_dims(model_input, axis=0)
-    
-    prediction = model.predict(model_input)
+
+    # Perform CNN prediction
+    prediction = model.predict(model_input, verbose=0) # Set verbose to 0 to avoid printing progress bar
     softmax_probs = tf.nn.softmax(prediction).numpy().flatten()
+
+    # Find the predicted digit among the valid ones
     sub_probs = [softmax_probs[d] for d in valid_digits]
     predicted_digit = valid_digits[np.argmax(sub_probs)]
+
+    # Original option-specific check after prediction
+    # This check is kept as in the original file structure.
     if(option):
+        # Check if the overall most probable digit is the same as the predicted digit among valid ones
+        # This helps catch cases where a non-valid digit might have a higher probability overall.
         if(np.argmax(softmax_probs) != predicted_digit):
+
             return "N.A"
+
+    # If not flagged by the simple check or the option check (if applicable), return the predicted digit
     return predicted_digit
