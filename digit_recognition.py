@@ -167,7 +167,7 @@ def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_di
         # This helps catch cases where a non-valid digit might have a higher probability overall.
         if(np.argmax(softmax_probs) != predicted_digit):
 
-            return "N.A"
+            return "IDK"
 
     # If not flagged by the simple check or the option check (if applicable), return the predicted digit
     return predicted_digit
