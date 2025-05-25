@@ -7,7 +7,7 @@ from digit_recognition import final_digit_recognised # Assuming this file exists
 
 # Load model and define paths
 model = load_model("./handwritten_digit_cnn.h5")
-pdf_path = "./scanned.pdf" # This will be used in the try-except block later
+pdf_path = "./scan.pdf" # This will be used in the try-except block later
 
 # Create directories
 os.makedirs("single_sheet", exist_ok=True)

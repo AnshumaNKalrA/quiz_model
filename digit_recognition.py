@@ -94,8 +94,8 @@ def is_struck_out_enhanced(image_norm, option=False, sid_dir=None, index=None):
 
     # Define the acceptable range for white pixels based on box type
     if option:
-        min_white_pixels = 3700
-        max_white_pixels = 4000
+        min_white_pixels = 3734
+        max_white_pixels = 3954
         box_type = "Option"
     else: # Assuming it's an SID box if not an option
         min_white_pixels = 3400
@@ -128,7 +128,7 @@ def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_di
     final_64 = crop_and_preprocess_digit(image, top, bottom, right, left, padding=10)
     if final_64.size == 0 or np.all(final_64 == 0): # Check for empty or all black image after preprocessing
         print(f"Warning: Preprocessed image at index {i} is empty or all black. Skipping recognition.")
-        return "N.A"
+        return "IDK"
 
     # Optionally save for debugging.
     sid_crop_path = os.path.join(sid_dir, f"sid_digit_after_preprocessing_{i}.png")
@@ -143,7 +143,7 @@ def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_di
     # Pass sid_dir and index for potential debug saving within is_struck_out_enhanced.
     if is_struck_out_enhanced(norm_img, option=option, sid_dir=sid_dir, index=i):
         # print(f"Digit at index {i} appears to be marked (white pixel count check).")
-        return "N.A"
+        return "IDK"
 
     # --- CNN Prediction (if not marked by the simple check) ---
     # This part is reached only if is_struck_out_enhanced did NOT flag the image.
