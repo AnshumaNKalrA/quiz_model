@@ -9,3 +9,5 @@ single_sheet/
 digit-recognizer/
 debug_images/
 debug_contours/
+contour_images_with_areas/
+training_data/

@@ -98,14 +98,14 @@ def is_struck_out_enhanced(image_norm, option=False, sid_dir=None, index=None):
         max_white_pixels = 4000
         box_type = "Option"
     else: # Assuming it's an SID box if not an option
-        min_white_pixels = 3700
+        min_white_pixels = 3400
         max_white_pixels = 4050
         box_type = "SID"
 
 
     # Check if the white pixel count is outside the desired range
     if white_pixel_count < min_white_pixels or white_pixel_count > max_white_pixels:
-        print(f"{box_type} box: White pixel count ({white_pixel_count}) is outside the range ({min_white_pixels}-{max_white_pixels}). Flagging.")
+        print(f"{box_type} box: Black pixel count ({white_pixel_count}) is outside the range ({min_white_pixels}-{max_white_pixels}). Flagging.")
         return True
     else:
         # print(f"{box_type} box: White pixel count ({white_pixel_count}) is within the range.")
@@ -131,9 +131,9 @@ def final_digit_recognised(image, i, sid_dir, top, bottom, right, left, valid_di
         return "N.A"
 
     # Optionally save for debugging.
-    # sid_crop_path = os.path.join(sid_dir, f"sid_digit_after_preprocessing_{i}.png")
-    # cv2.imwrite(sid_crop_path, final_64)
-    # print("Preprocessed digit shape:", final_64.shape)
+    sid_crop_path = os.path.join(sid_dir, f"sid_digit_after_preprocessing_{i}.png")
+    cv2.imwrite(sid_crop_path, final_64)
+    print("Preprocessed digit shape:", final_64.shape)
 
     # Normalize image to [0,1].
     norm_img = final_64.astype(np.float32) / 255.0

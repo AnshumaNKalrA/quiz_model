@@ -3,20 +3,26 @@ import cv2
 import numpy as np
 from keras.models import load_model
 from pdf2image import convert_from_path
-from digit_recognition import final_digit_recognised
+from digit_recognition import final_digit_recognised # Assuming this file exists and is correct
 
+# Load model and define paths
 model = load_model("./handwritten_digit_cnn.h5")
-pdf_path = "./Scanned_sheets.pdf"
-pages = convert_from_path(pdf_path, dpi=144)
+pdf_path = "./scanned.pdf" # This will be used in the try-except block later
+
+# Create directories
 os.makedirs("single_sheet", exist_ok=True)
+CONTOUR_IMAGES_DIR = "contour_images_with_areas"  # Define the new directory name
+os.makedirs(CONTOUR_IMAGES_DIR, exist_ok=True)    # Create the new directory
+
+# Define cropping constants
 TOP_CROP = 20
 BOTTOM_CROP = 20
 LEFT_CROP = 20
 RIGHT_CROP = 20
 
-def pdf_processing(pages):
+def pdf_processing(pages_list): # Renamed 'pages' to 'pages_list' for clarity
     dict_return = {}
-    for idx, page_img in enumerate(pages):
+    for idx, page_img in enumerate(pages_list):
         page_path = os.path.join("single_sheet", f"page_{idx}.png")
         page_img.save(page_path, "PNG")
 
@@ -43,13 +49,31 @@ def pdf_processing(pages):
         sid_boxes = []
         option_boxes = []
 
-        for c in contours:
+        # Iterate through contours with an index for unique naming
+        for c_idx, c in enumerate(contours):
             x, y, w_box, h_box = cv2.boundingRect(c)
-            area = w_box * h_box
+            area = w_box * h_box  # Area of the bounding box
+
+            # Filter contours based on area (same as original code)
             if area < 300 or area > 50000:
                 continue
 
-            if 2200 < area < 2850:
+            # --- New: Save the contour image (cropped bounding box) ---
+            # Crop the region of the contour from the cropped page image
+            contour_image_crop = cropped_page_img[y : y + h_box, x : x + w_box]
+
+            if contour_image_crop.size > 0:
+                # Construct filename: page_idx_contour_c_idx_area_value.png
+                contour_filename = f"page_{idx}_contour_{c_idx}_area_{int(area)}.png"
+                contour_save_path = os.path.join(CONTOUR_IMAGES_DIR, contour_filename)
+                cv2.imwrite(contour_save_path, contour_image_crop)
+                # print(f"Saved contour image to: {contour_save_path}") # Optional: uncomment for verbose logging
+            else:
+                print(f"Warning: Page {idx}, Contour {c_idx} - Empty crop, not saving contour image.")
+            # --- End new code for saving contour image ---
+
+            # Original logic for classifying contours into SID or option boxes
+            if 2100 < area < 2900:
                 sid_boxes.append((x, y, w_box, h_box))
             elif 5000 < area < 14000 and w_box < 900:
                 option_boxes.append((x, y, w_box, h_box))
@@ -79,7 +103,7 @@ def pdf_processing(pages):
 
         for i, (x, y, w_box, h_box) in enumerate(sid_boxes_sorted):
             valid_digits = [0,1,2,3,4,5,6,7,8,9]
-            if(i == 3):
+            if(i == 3): # Assuming this condition is specific to your use case
                 valid_digits = [0,1]
             y_end = min(y + h_box, cropped_page_img.shape[0])
             x_end = min(x + w_box, cropped_page_img.shape[1])
@@ -132,16 +156,19 @@ def pdf_processing(pages):
 
     return dict_return
 
+# Main execution block
 try:
-    pdf_path = "./scanned.pdf"
-    pages = convert_from_path(pdf_path, dpi=144)
-    os.makedirs("single_sheet", exist_ok=True)
-    TOP_CROP = 20
-    BOTTOM_CROP = 20
-    LEFT_CROP = 20
-    RIGHT_CROP = 20
-    results = pdf_processing(pages)
-    print(results)
+    # pdf_path variable is already defined globally
+    # TOP_CROP, BOTTOM_CROP, etc. are also defined globally
+    # os.makedirs("single_sheet", exist_ok=True) # Already done globally
+
+    # Convert PDF to images
+    pages_from_pdf = convert_from_path(pdf_path, dpi=144) # Use the global pdf_path
+
+    # Process the PDF pages
+    results = pdf_processing(pages_from_pdf)
+    print("Processing Results:", results)
+
 except FileNotFoundError:
     print(f"Error: PDF file not found at {pdf_path}")
 except Exception as e:
